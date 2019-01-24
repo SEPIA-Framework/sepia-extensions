@@ -1,0 +1,15 @@
+{
+	"services" : [
+		{
+			"name": "HelloWorld",
+			"cmd": "hello_world",
+			"path": "java/HelloWorld.java",
+			"version": "0.9.0"
+		},{
+			"name": "RestaurantDemo",
+			"cmd": "restaurant_reservation",
+			"path": "java/RestaurantDemo.java",
+			"version": "0.9.0"
+		}
+	]
+}
