@@ -1,0 +1,9 @@
+{
+	"plugins" : [
+		{
+			"name": "HelloPlugin",
+			"path": "java/HelloPlugin.java",
+			"version": "0.9.0"
+		}
+	]
+}
