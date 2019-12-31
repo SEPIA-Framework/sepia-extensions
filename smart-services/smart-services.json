@@ -20,6 +20,11 @@
 			"cmd": "python_bridge",
 			"path": "java/PythonBridgeDemo.java",
 			"version": "0.9.0"
+		},{
+			"name": "MqttDemo",
+			"cmd": "mqtt",
+			"path": "java/MqttDemo.java",
+			"version": "0.9.0"
 		}
 	]
 }
