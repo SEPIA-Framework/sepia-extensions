@@ -24,7 +24,12 @@
 			"name": "MqttDemo",
 			"cmd": "mqtt",
 			"path": "java/MqttDemo.java",
-			"version": "0.9.0"
+			"version": "0.9.1"
+		},{
+			"name": "CoronaDataEcdc",
+			"cmd": "corona_data",
+			"path": "java/CoronaDataEcdc.java",
+			"version": "1.0.0"
 		}
 	]
 }
