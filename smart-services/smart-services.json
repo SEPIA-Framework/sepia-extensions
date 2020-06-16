@@ -29,7 +29,7 @@
 			"name": "CoronaDataEcdc",
 			"cmd": "corona_data",
 			"path": "java/CoronaDataEcdc.java",
-			"version": "1.0.0"
+			"version": "1.0.1"
 		}
 	]
 }
