@@ -43,6 +43,16 @@
 			background: #000;
 			color: #fff;
 		}
+		#player-info-msg {
+			width: 100%;
+			height: auto;
+			padding: 6px;
+			background: #000;
+			color: #fff;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
 	</style>
 </head>
 <body >
@@ -52,11 +62,10 @@
 			height="280"
 			allowtransparency="true" allow="autoplay *; encrypted-media *;"
 		></iframe>
+		<div id="player-info-msg"></div>
 	</div>
 	<!-- JS -->
 	<script type="text/javascript">
-		//--------- COMMON WIDGET INTERFACE ---------
-		
 		//postMessage listener
 		window.addEventListener('message', function(message){
 			if (message.data && message.data.type){
@@ -116,6 +125,13 @@
 		if (skinId != undefined){
 			document.body.classList.add("skin-id-" + skinId);
 		}
+		function updateSize(){
+			postProperties({
+				size: {
+					height: (cardBody.getBoundingClientRect().height + "px")
+				}
+			});
+		}
 
 		//handle events
 		function eventHandler(ev){
@@ -139,10 +155,13 @@
 		
 		var youTubeMessageListenerExists = false;
 		var youTubePlayerState = 0;		//States I know: -1-unstarted, 0-ended/off, 1-playing, 2-paused, 3-buffering, 5-queued (??)
+		var youTubePlayerWaitingForPlay = false;
+		var youTubePlaybackQuality = "";	//this is more of a "does it load" fallback than actual relevant info ;-)
 		var youTubeLastUrlRequest = "";
 
 		var cardBody = document.getElementById("card-body");
 		var playerFrame = document.getElementById("audio-player");
+		var playerInfoMsgEle = document.getElementById("player-info-msg");
 		
 		var autoplay = false;
 		var restoreSettings = {};
@@ -190,7 +209,7 @@
 		}
 		
 		function handleMediaRequest(ev){
-			//console.error("Media request", ev.mediaRequest); 		//DEBUG
+			//console.error("Media request", ev.mediaRequest, ev.autoplay); 		//DEBUG
 			var mr = ev.mediaRequest;
 			/* type: music:
 			{
@@ -228,19 +247,21 @@
 			}else if (mr.uri){
 				ytUrl = mr.uri;
 			}
+			var errorMessage = "";
 			if (ytUrl){
 				//handle a bunch of URLs
 				if (ytUrl.indexOf("search_query=") > 0){
 					//will fail due to iframe restrictions, e.g.: https://www.youtube.com/results?search_query=purple+haze%2C+jimi+hendrix
 					//TODO: add error message
 					ytUrl = undefined;
-					playerFrame.src = "";
+					playerFrame.src = "about:blank";
+					errorMessage = "Embedded search requires API now :-(";
 				}else if (!!ytUrl.match(/(&|\?)v=.+/)){
 					//https://www.youtube.com/watch?v=H-RBJNqdnoM&list=RDEMrHVi-mxOgy0ZqOdSlMHqjA&start_radio=1
 					var videoId = ytUrl.replace(/.*(&|\?)v=/, "").replace(/&.*/, "").trim();
 					ytUrl = addYouTubeEmbedUrlParameters(baseUrl + videoId);
 					playerFrame.src = ytUrl;
-				}else if ((!!ytUrl.match(/(&|\?)listType=playlist/) || ytUrl.indexOf("/playlist?") >= 23) && !!ytUrl.match(/(&|\?)list=.+/)){
+				}else if ((!!ytUrl.match(/(&|\?)listType=playlist/) || ytUrl.indexOf("/playlist?") >= 10) && !!ytUrl.match(/(&|\?)list=.+/)){
 					//https://www.youtube.com/embed?listType=playlist&list=OLAK5uy_nMLnwHRhSOAO6sO7LmFRkp21RATGG6mT8&start_radio=1
 					//https://www.youtube.com/playlist?list=OLAK5uy_nMLnwHRhSOAO6sO7LmFRkp21RATGG6mT8
 					var playlistId = ytUrl.replace(/.*(&|\?)list=/, "").replace(/&.*/, "").trim();
@@ -248,17 +269,31 @@
 					playerFrame.src = ytUrl;
 				}else{
 					//https://www.youtube.com/embed/dkNfNR1WYMY
-					//https://www.youtube-nocookie.com/embed/dkNfNR1WYMY
-					ytUrl = addYouTubeEmbedUrlParameters(ytUrl, ytUrlPlaylistParam);
+					//https://www.youtube-nocookie.com/embed/dkNfNR1WYMY	//has control bug :-(
+					//https://youtu.be/tAGnKpE4NCI
+					//https://m.youtube.com/embed/tAGnKpE4NCI
+					ytUrl = addYouTubeEmbedUrlParameters(
+						ytUrl.replace(/https:\/\/.*?\/(embed\/|)/, "https://www.youtube.com/embed/"), ytUrlPlaylistParam);
 					playerFrame.src = ytUrl;
 				}
 				youTubeLastUrlRequest = ytUrl;
+			}else{
+				playerFrame.src = "about:blank";
 			}
-			if (!playerFrame.src){
+			if (!ytUrl){
 				//Error: NoMediaMatch
 				postError("NoMediaMatch", "Found no video to play", 2);
+				playerInfoMsgEle.textContent = errorMessage || "No Media";
+				playerInfoMsgEle.style.display = "";
+				playerFrame.style.display = "none";
+				updateSize();
 			}else{
 				//console.error("YouTube URL:", playerFrame.src);		//DEBUG
+				if (playerFrame.style.display == "none"){
+					playerInfoMsgEle.style.display = "none";
+					playerFrame.style.display = "";
+					updateSize();
+				}
 			}
 			//Backup settings
 			restoreSettings.src = playerFrame.src;
@@ -269,8 +304,7 @@
 		//make sure we have correct URL parameters for embedded link
 		function addYouTubeEmbedUrlParameters(url, add){
 			var u = (
-				url.replace("youtube-nocookie.com", "youtube.com")	//for controls bug :-(
-				.replace(/\?.*/, "").trim()
+				url.replace(/\?.*/, "").trim()
 				+ "?autoplay=" + (autoplay? 1 : 0)
 				+ "&enablejsapi=1&playsinline=1&iv_load_policy=3&fs=1"
 			);
@@ -295,37 +329,58 @@
 				if (data && data.id){
 					if (data.event == 'onReady'){
 						//console.error("YouTube: player ready");		//DEBUG
+						youTubePlaybackQuality = "";
+						if (autoplay){
+							youTubePlayerWaitingForPlay = true;
+							//this is an autoplay-fallback to make sure it actually starts (problems on Android)
+							autoplayTimer = setTimeout(function(){
+								if (youTubePlayerState != 1 && !youTubePlaybackQuality) youTubePlayerControls("play");
+								//if (youTubePlayerState != 1 && !youTubePlaybackQuality) console.error("should play now");
+							}, 3000);
+						}else{
+							youTubePlayerWaitingForPlay = false;
+						}
 						
-					}else if (data.event == 'infoDelivery' && data.info && data.info.playerState != undefined){
-						youTubePlayerState = data.info.playerState;
-						
-						if (data.info.playerState == 1){
-							//console.error("YouTube: player start", data.info);	//DEBUG
-							var title = "YouTube";
-							var url = youTubeLastUrlRequest;
-							if (data.info.videoData){
-								title = data.info.videoData.title;
-								url = "https://www.youtube.com/embed/" + encodeURIComponent(data.info.videoData.video_id);
-							}
-							postState(2, {
-								meta: {
-									title: title,
-									url: url
+					}else if (data.event == 'infoDelivery' && data.info){
+						if (data.info.playerState != undefined){
+							youTubePlayerState = data.info.playerState;
+							
+							if (data.info.playerState == 1){
+								//console.error("YouTube: player start", data.info);	//DEBUG
+								youTubePlayerWaitingForPlay = false;
+								clearTimeout(autoplayTimer);
+								var title = "YouTube";
+								var url = youTubeLastUrlRequest;
+								if (data.info.videoData){
+									title = data.info.videoData.title;
+									url = "https://www.youtube.com/embed/" + encodeURIComponent(data.info.videoData.video_id);
 								}
-							});
-						
-						}else if (data.info.playerState == 2 || data.info.playerState == 0){
-							//console.error("YouTube: player pause", data.info); 	//DEBUG
-							postState(3);
-						
-						}/*else if (data.info.playerState == -1){
-							console.error("YouTube: player error");	//DEBUG - is it error? its not ...
-							postError("PlayerError", "Unknown", 4);
-						}*/
+								postState(2, {
+									meta: {
+										title: title,
+										url: url
+									}
+								});
+							
+							}else if (data.info.playerState == 2 || data.info.playerState == 0){
+								//console.error("YouTube: player pause", data.info); 	//DEBUG
+								youTubePlayerWaitingForPlay = false;
+								clearTimeout(autoplayTimer);
+								postState(3);
+							
+							}/*else if (data.info.playerState == -1){
+								console.error("YouTube: player error");	//DEBUG - is it error? its not ...
+								postError("PlayerError", "Unknown", 4);
+							}*/
+						}else if (youTubePlayerWaitingForPlay && data.info.playbackQuality){
+							youTubePlaybackQuality = data.info.playbackQuality;
+							//console.error("YouTube: playbackQuality", youTubePlaybackQuality);	//DEBUG
+						}
 					}
 				}
 			}
 		}
+		var autoplayTimer = undefined;
 		
 		function youTubePlayerControls(cmd){
 			//reset some stuff first
@@ -352,11 +407,7 @@
 				
 		//ready
 		setTimeout(function(){
-			postProperties({
-				size: {
-					height: (cardBody.getBoundingClientRect().height + "px")
-				}
-			});
+			updateSize();
 			postState(1, {});
 		}, 300);
 	</script>
