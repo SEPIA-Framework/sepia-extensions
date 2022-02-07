@@ -6,6 +6,11 @@
 			"path": "java/HelloWorld.java",
 			"version": "0.9.0"
 		},{
+			"name": "DynamicQuestionAnswering",
+			"cmd": "question_answer",
+			"path": "java/DynamicQuestionAnswering.java",
+			"version": "0.9.0"
+		},{
 			"name": "RestaurantDemo",
 			"cmd": "restaurant_reservation",
 			"path": "java/RestaurantDemo.java",
@@ -19,12 +24,17 @@
 			"name": "PythonBridgeDemo",
 			"cmd": "python_bridge",
 			"path": "java/PythonBridgeDemo.java",
-			"version": "0.9.0"
+			"version": "0.9.1"
 		},{
 			"name": "MqttDemo",
 			"cmd": "mqtt",
 			"path": "java/MqttDemo.java",
 			"version": "0.9.1"
+		},{
+			"name": "RoboCleaner",
+			"cmd": "robo_cleaner",
+			"path": "java/RoboCleaner.java",
+			"version": "0.6.0"
 		},{
 			"name": "CoronaDataEcdc",
 			"cmd": "corona_data",
